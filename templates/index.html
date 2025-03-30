@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Аудіо Класифікація</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #314D3D;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #fff;
+            text-align: center;
+        }
+        .event-log {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .event-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .event-item:last-child {
+            border-bottom: none;
+        }
+        .event-label {
+            font-weight: bold;
+            color: #2F4C3B;
+        }
+        .event-time {
+            color: #2F4C3B;
+            font-size: 0.9em;
+        }
+        .timestamp {
+            text-align: center;
+            color: #2F4C3B;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .status {
+            text-align: center;
+            color: #2F4C3B;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        .details-toggle {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .details-toggle button {
+            background: none;
+            border: none;
+            color: #2F4C3B;
+            cursor: pointer;
+            font-size: 0.9em;
+            padding: 5px 10px;
+        }
+        .details-toggle button:hover {
+            text-decoration: underline;
+        }
+        .classifier-details {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: bold;
+            color: #2F4C3B;
+        }
+        .score {
+            color: #2F4C3B;
+        }
+        h2 {
+            color: #2F4C3B;
+            text-align: center;
+        }
+        img {
+            width: 300px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="{{url_for('static', filename='logo.png')}}" align="middle" />
+        <h2>by Neural ORTwork</h2>
+        <div class="event-log" id="eventLog">
+            <!-- Лог подій буде додано через JavaScript -->
+        </div>
+        <div class="details-toggle">
+            <button onclick="toggleDetails()">Показати/Приховати рівні класифікаторів</button>
+        </div>
+        <div class="classifier-details" id="classifierDetails">
+            <!-- Деталі класифікаторів будуть додані через JavaScript -->
+        </div>
+        <div class="timestamp" id="timestamp">
+            Очікування даних...
+        </div>
+        <div class="status" id="status">
+            Підключення до сервера...
+        </div>
+    </div>
+
+    <script>
+        const eventLogDiv = document.getElementById('eventLog');
+        const classifierDetailsDiv = document.getElementById('classifierDetails');
+        const timestampDiv = document.getElementById('timestamp');
+        const statusDiv = document.getElementById('status');
+
+        function updateUI(data) {
+            // Оновлюємо лог подій
+            if (data.event_log) {
+                eventLogDiv.innerHTML = '';
+                data.event_log.forEach(event => {
+                    const eventItem = document.createElement('div');
+                    eventItem.className = 'event-item';
+                    eventItem.innerHTML = `
+                        <span class="event-label">${event.label}</span>
+                        <span class="event-time">${event.timestamp}</span>
+                    `;
+                    eventLogDiv.appendChild(eventItem);
+                });
+            }
+
+            // Оновлюємо деталі класифікаторів
+            if (data.results) {
+                classifierDetailsDiv.innerHTML = '';
+                for (const [label, score] of Object.entries(data.results)) {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    resultItem.innerHTML = `
+                        <span class="label">${label}</span>
+                        <span class="score">${score.toFixed(2)}</span>
+                    `;
+                    classifierDetailsDiv.appendChild(resultItem);
+                }
+            }
+
+            timestampDiv.textContent = `Оновлено: ${data.timestamp}`;
+            statusDiv.textContent = 'Підключено';
+        }
+
+        function toggleDetails() {
+            const details = document.getElementById('classifierDetails');
+            details.style.display = details.style.display === 'none' ? 'block' : 'none';
+        }
+
+        const eventSource = new EventSource('/stream');
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            updateUI(data);
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('EventSource failed:', error);
+            statusDiv.textContent = 'Помилка підключення. Перепідключення...';
+            eventSource.close();
+            setTimeout(() => {
+                const newEventSource = new EventSource('/stream');
+                eventSource = newEventSource;
+            }, 5000);
+        };
+    </script>
+</body>
+</html> 
